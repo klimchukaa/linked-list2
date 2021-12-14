@@ -13,6 +13,7 @@ class node{
 public:
     T x;
     node* next;
+    node* prev;
     //Constructors
     node(const T &x) : x(x) {
         next = nullptr;
@@ -25,50 +26,32 @@ class linked_list{
 public:
     node<T>* head = nullptr;
     node<T>* tail = nullptr;
+    node<T>* cur = nullptr;
     int s = 0;
     //Checkers
     bool empty();
-    //Get
-    node<T>* get_node(int ind);
     //Add
     void push_front(T x);
     void push_back(T x);
-    void push_in(T x, int ind);
-    //Find
-    int find_index(T x);
+    void push_in(T x);
     //Delete
     void pop_front();
     void pop_back();
-    void pop_in(int ind);
-    void pop_value(T x);
+    void pop_in();
     //Operators
     template<typename Type> friend ostream& operator<<(ostream&, const linked_list<Type>&);
-    const T operator[](int ind);
-
+    //Shift
+    void shift_left();
+    void shift_right();
+    //For game
+    bool check();
+    void shift_begin();
+    int erase_same(T x);
 };
 
 template<typename T>
 bool linked_list<T>::empty() {
     return (s == 0);
-}
-
-template<typename T>
-node<T>* linked_list<T>::get_node(int ind) {
-    if (ind < 1) {
-        throw::invalid_argument("Invalid index");
-    }
-    node<T>* now = head;
-    while (ind > 1) {
-        if (now == nullptr) {
-            throw::invalid_argument("List has a few elements");
-        }
-        now = now->next;
-        ind--;
-    }
-    if (now == nullptr) {
-        throw::invalid_argument("List has a few elements");
-    }
-    return now;
 }
 
 template<typename T>
@@ -78,8 +61,10 @@ void linked_list<T>::push_front(T x) {
     if (s == 1) {
         head = vertex;
         tail = vertex;
+        cur = vertex;
         return;
     }
+    head->prev = vertex;
     vertex->next = head;
     head = vertex;
 }
@@ -91,44 +76,27 @@ void linked_list<T>::push_back(T x) {
     if (s == 1) {
         head = vertex;
         tail = vertex;
+        cur = vertex;
         return;
     }
+    vertex->prev = tail;
     tail->next = vertex;
     tail = vertex;
 }
 
 template<typename T>
-void linked_list<T>::push_in(T x, int ind) {
-    if (ind == 1) {
+void linked_list<T>::push_in(T x) {
+    if (cur == head || s == 0) {
         push_front(x);
         return;
     }
-    if (ind == s + 1) {
-        push_back(x);
-        return;
-    }
-    node<T>* now = get_node(ind - 1);
     node<T>* vertex = new node<T>(x);
     s++;
-    vertex->next = now->next;
-    now->next = vertex;
-}
-
-template<typename T>
-int linked_list<T>::find_index(T x) {
-    node<T>* now = head;
-    int res = 1;
-    while (now != nullptr) {
-        if (now->x == x) {
-            break;
-        }
-        now = now->next;
-        res++;
-    }
-    if (now == nullptr) {
-        throw::invalid_argument("There is not this element in the list");
-    }
-    return res;
+    vertex->prev = cur->prev;
+    vertex->next = cur;
+    cur->prev->next = vertex;
+    cur->prev = vertex;
+    cur = vertex;
 }
 
 template<typename T>
@@ -137,10 +105,16 @@ void linked_list<T>::pop_front() {
         throw::invalid_argument("The list is empty");
     }
     s--;
-    head = head->next;
-    if (head == nullptr) {
+    if (s == 0) {
+        cur = nullptr;
+        head = nullptr;
         tail = nullptr;
+        return;
+    } else if (head == cur) {
+        cur = head->next;
     }
+    head = head->next;
+    head->prev = nullptr;
 }
 
 template<typename T>
@@ -152,42 +126,87 @@ void linked_list<T>::pop_back() {
     if (s == 0) {
         head = nullptr;
         tail = nullptr;
+        cur = nullptr;
         return;
+    } else if (tail == cur) {
+        cur = tail->prev;
     }
-    node<T>* now = head;
-    while (now->next != tail) {
-        now = now->next;
-    }
-    tail = now;
+    tail = tail->prev;
     tail->next = nullptr;
 }
 
 template<typename T>
-void linked_list<T>::pop_in(int ind) {
-    if (ind < 1) {
-        throw::invalid_argument("Invalid index");
+void linked_list<T>::pop_in() {
+    if (cur == nullptr) {
+        throw::invalid_argument("The list is empty");
     }
-    if (ind > s) {
-        throw::invalid_argument("The list is too small");
-    }
-    if (ind == 1) {
+    if (cur == head) {
         pop_front();
         return;
     }
-    if (ind == s) {
+    if (cur == tail) {
         pop_back();
         return;
     }
-    node<T>* now = get_node(ind - 1);
     s--;
-    now->next = now->next->next;
+    cur->prev->next = cur->next;
+    cur->next->prev = cur->prev;
+    cur = cur->next;
 }
 
 template<typename T>
-void linked_list<T>::pop_value(T x) {
-    int ind = find_index(x);
-    pop_in(ind);
+void linked_list<T>::shift_left() {
+    if (head == cur) return;
+    cur = cur->prev;
 }
+
+template<typename T>
+void linked_list<T>::shift_right() {
+    if (tail == cur) return;
+    cur = cur->next;
+}
+
+template<typename T>
+bool linked_list<T>::check() {
+    if (cur != head) {
+        if (cur->prev->prev != nullptr) {
+            if (cur->x == cur->prev->x && cur->x == cur->prev->prev->x) {
+                return 1;
+            }
+        }
+    }
+    if (cur != tail) {
+        if (cur->next->next != nullptr) {
+            if (cur->x == cur->next->x && cur->x == cur->next->next->x) {
+                return 1;
+            }
+        }
+    }
+    if (cur != tail && cur != head) {
+        if (cur->x == cur->next->x && cur->x == cur->prev->x) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+template<typename T>
+void linked_list<T>::shift_begin() {
+    while (cur != head && cur->prev->x == cur->x) {
+        shift_left();
+    }
+}
+
+template<typename T>
+int linked_list<T>::erase_same(T x) {
+    int del = 0;
+    while (s > 0 && cur->x == x) {
+        pop_in();
+        del++;
+    }
+    return del;
+}
+
 
 template<typename Type>
 ostream &operator<<(ostream &out, const linked_list<Type> &a) {
@@ -198,25 +217,6 @@ ostream &operator<<(ostream &out, const linked_list<Type> &a) {
     }
     cout << "\n";
     return out;
-}
-
-template<typename T>
-const T linked_list<T>::operator[](int ind) {
-    if (ind < 1) {
-        throw::invalid_argument("Invalid index");
-    }
-    node<T>* now = head;
-    while (ind > 1) {
-        if (now == nullptr) {
-            throw::invalid_argument("List has a few elements");
-        }
-        now = now->next;
-        ind--;
-    }
-    if (now == nullptr) {
-        throw::invalid_argument("List has a few elements");
-    }
-    return now->x;
 }
 
 #endif // LINKED_LIST_H_INCLUDED
